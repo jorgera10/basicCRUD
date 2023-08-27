@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRUD con Bootstrap</title>
+    <!-- Enlace a Bootstrap CSS desde CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>Lista de Tareas</h1>
+        <form id="task-form">
+            <div class="mb-3">
+                <label for="task" class="form-label">Nueva tarea</label>
+                <input type="text" class="form-control" id="task" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Agregar tarea</button>
+        </form>
+        <ul id="task-list" class="list-group mt-4">
+            <!-- Aquí se mostrarán las tareas -->
+        </ul>
+    </div>
+
+    <!-- Enlace a Bootstrap JS desde CDN y el código JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const taskForm = document.getElementById('task-form');
+        const taskList = document.getElementById('task-list');
+
+        taskForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            const taskInput = document.getElementById('task');
+            const taskText = taskInput.value.trim();
+            
+            if (taskText !== '') {
+                // Realizar la solicitud POST al servidor backend
+                fetch('http://localhost:3000/agregar-tarea', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ taskText })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message === 'Tarea agregada exitosamente') {
+                        const taskItem = document.createElement('li');
+                        taskItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        taskItem.innerHTML = `
+                            <span class="list-group-item-text">${taskText}</span>
+                            <div>
+                                <button class="btn btn-sm btn-warning edit-btn">Editar</button>
+                                <button class="btn btn-sm btn-danger delete-btn">Eliminar</button>
+                            </div>
+                        `;
+                        taskList.appendChild(taskItem);
+                        taskItem.dataset.taskId = data.taskId; // Asignar el ID de la tarea a través de atributo data
+                        taskInput.value = '';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error al agregar tarea:', error);
+                });
+            }
+        });
+
+        taskList.addEventListener('click', function(event) {
+            const target = event.target;
+
+            if (target.classList.contains('delete-btn')) {
+                const taskItem = target.closest('.list-group-item');
+                const taskId = taskItem.dataset.taskId; // Obtener el ID de la tarea desde el atributo data
+                deleteTask(taskId);
+            } else if (target.classList.contains('edit-btn')) {
+                const taskText = target.parentElement.parentElement.querySelector('.list-group-item-text');
+                const newText = prompt('Editar tarea:', taskText.textContent);
+
+                if (newText !== null && newText.trim() !== '') {
+                    const taskItem = target.closest('.list-group-item');
+                    const taskId = taskItem.dataset.taskId; // Obtener el ID de la tarea desde el atributo data
+                    editTask(taskId, newText.trim());
+                }
+            }
+        });
+
+        // Función para eliminar tarea
+        function deleteTask(taskId) {
+            fetch(`http://localhost:3000/eliminar-tarea/${taskId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message === 'Tarea eliminada exitosamente') {
+                    const taskItem = document.querySelector(`[data-task-id="${taskId}"]`);
+                    taskItem.remove();
+                }
+            })
+            .catch(error => {
+                console.error('Error al eliminar tarea:', error);
+            });
+        }
+
+        // Función para editar tarea
+        function editTask(taskId, newTaskText) {
+            fetch(`http://localhost:3000/editar-tarea/${taskId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ newTaskText })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message === 'Tarea editada exitosamente') {
+                    const taskItem = document.querySelector(`[data-task-id="${taskId}"]`);
+                    const taskText = taskItem.querySelector('.list-group-item-text');
+                    taskText.textContent = newTaskText;
+                }
+            })
+            .catch(error => {
+                console.error('Error al editar tarea:', error);
+            });
+        }
+
+        // Función para cargar y mostrar las tareas desde el servidor
+        function loadTasks() {
+            fetch('http://localhost:3000/obtener-tareas')
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(task => {
+                        const taskItem = document.createElement('li');
+                        taskItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        taskItem.innerHTML = `
+                            <span class="list-group-item-text">${task.task_text}</span>
+                            <div>
+                                <button class="btn btn-sm btn-warning edit-btn">Editar</button>
+                                <button class="btn btn-sm btn-danger delete-btn">Eliminar</button>
+                            </div>
+                        `;
+                        taskList.appendChild(taskItem);
+                        taskItem.dataset.taskId = task.id; // Asignar el ID de la tarea a través de atributo data
+                    });
+                })
+                .catch(error => {
+                    console.error('Error al cargar tareas:', error);
+                });
+        }
+
+        // Llamar a la función para cargar tareas al cargar la página
+        loadTasks();
+    </script>
+</body>
+</html>
